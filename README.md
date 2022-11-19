@@ -16,17 +16,17 @@ By default there are no shares configured, additional ones can be added.
 
 ## Hosting a Samba instance
 
-    sudo docker run -it -p 139:139 -p 445:445 -d dperson/samba -p
+    sudo docker run -it -p 139:139 -p 445:445 -d ghcr.io/daaang/samba -p
 
 OR set local storage:
 
     sudo docker run -it --name samba -p 139:139 -p 445:445 \
                 -v /path/to/directory:/mount \
-                -d dperson/samba -p
+                -d ghcr.io/daaang/samba -p
 
 ## Configuration
 
-    sudo docker run -it --rm dperson/samba -h
+    sudo docker run -it --rm ghcr.io/daaang/samba -h
     Usage: samba.sh [-opt] [command]
     Options (fields in '[]' are optional, '<>' are required):
         -h          This help
@@ -109,17 +109,89 @@ Any of the commands can be run at creation with `docker run` or later with
 
 ### Setting the Timezone
 
-    sudo docker run -it -e TZ=EST5EDT -p 139:139 -p 445:445 -d dperson/samba -p
+    sudo docker run -it -e TZ=EST5EDT -p 139:139 -p 445:445 -d ghcr.io/daaang/samba -p
 
 ### Start an instance creating users and shares:
 
-    sudo docker run -it -p 139:139 -p 445:445 -d dperson/samba -p \
+    sudo docker run -it -p 139:139 -p 445:445 -d ghcr.io/daaang/samba -p \
                 -u "example1;badpass" \
                 -u "example2;badpass" \
                 -s "public;/share" \
                 -s "users;/srv;no;no;no;example1,example2" \
                 -s "example1 private share;/example1;no;no;no;example1" \
                 -s "example2 private share;/example2;no;no;no;example2"
+
+### Kubernetes with secret passwords
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: samba
+spec:
+  containers:
+  - name: samba
+    image: ghcr.io/daaang/samba:latest
+    imagePullPolicy: Always
+    args:
+    - "-u"
+    - "$(USERNAME_1);$(PASSWORD_1)"
+    - "-u"
+    - "$(USERNAME_2);$(PASSWORD_2)"
+    #- "-s"
+    #- "name;/tank;no;no;no;$(USERNAME_1),$(USERNAME_2)"
+    env:
+    - name: USERNAME_1
+      valueFrom:
+        secretKeyRef:
+          name: samba-passwords
+          key: USERNAME_1
+    - name: PASSWORD_1
+      valueFrom:
+        secretKeyRef:
+          name: samba-passwords
+          key: PASSWORD_1
+    - name: USERNAME_2
+      valueFrom:
+        secretKeyRef:
+          name: samba-passwords
+          key: USERNAME_2
+    - name: PASSWORD_2
+      valueFrom:
+        secretKeyRef:
+          name: samba-passwords
+          key: PASSWORD_2
+    ports:
+    - name: smb
+      containerPort: 445
+      protocol: TCP
+    - name: nmbd-name
+      containerPort: 137
+      protocol: UDP
+    - name: nmbd-datagram
+      containerPort: 138
+      protocol: UDP
+    - name: nmbd-session
+      containerPort: 139
+      protocol: TCP
+  #  volumeMounts:
+  #  - name: tank
+  #    mountPoint: /tank
+  #volumes:
+  #- name: tank
+  #  ???: ???
+---
+apiVersion: v1
+kind: Secret
+type: Opaque
+metadata:
+  name: samba-passwords
+stringData:
+  USERNAME_1: example1
+  PASSWORD_1: badpass
+  USERNAME_2: example1
+  PASSWORD_2: badpass
+```
 
 # User Feedback
 
@@ -134,7 +206,7 @@ Add the `-p` option to the end of your options to the container, or set the
 
     sudo docker run -it --name samba -p 139:139 -p 445:445 \
                 -v /path/to/directory:/mount \
-                -d dperson/samba -p
+                -d ghcr.io/daaang/samba -p
 
 If changing the permissions of your files is not possible in your setup you
 can instead set the environment variables `USERID` and `GROUPID` to the
@@ -148,7 +220,7 @@ docker_compose.yml files, IE:
 
     sudo docker run -it --name samba -m 512m -p 139:139 -p 445:445 \
                 -v /path/to/directory:/mount \
-                -d dperson/samba -p
+                -d ghcr.io/daaang/samba -p
 
 * Attempting to connect with the `smbclient` commandline tool. By default samba
 still tries to use SMB1, which is depriciated and has security issues. This
