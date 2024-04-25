@@ -2,7 +2,7 @@ name: Build container images and push to GHCR
 
 on:
   push:
-    branches: [master]
+    branches: [main]
 
 jobs:
   build:
